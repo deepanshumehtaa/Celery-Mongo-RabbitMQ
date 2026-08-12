@@ -12,7 +12,8 @@ from celery_app.tasks import (
     process_high_priority_task,
     process_default_task,
     process_low_priority_task,
-    process_failing_task
+    process_failing_task,
+    always_failing_task
 )
 
 class TestEnqueueAndExecution(unittest.TestCase):
@@ -81,6 +82,13 @@ class TestEnqueueAndExecution(unittest.TestCase):
         self.__class__.fail_task_id = async_result.id
         print(f"[Enqueue] Failing task pushed to RabbitMQ. Task ID: {async_result.id}")
 
+    def test_05b_enqueue_always_failing_task(self):
+        """Pushes a task that always fails to verify max retries and permanent FAILED state."""
+        async_result = always_failing_task.apply_async(args=({"reason": "permanent_failure_test"},), kwargs={"trace_id": "tr-test-always-fail"}, queue=RabbitMQConfig.DEFAULT_QUEUE)
+        self.assertIsNotNone(async_result.id)
+        self.__class__.always_fail_id = async_result.id
+        print(f"[Enqueue] Always failing task pushed to RabbitMQ. Task ID: {async_result.id}")
+
     def test_06_verify_mongodb_records(self):
         """
         Queries MongoDB to verify that records created by active workers match expected states.
@@ -147,25 +155,26 @@ def interactive_enqueue_menu():
     print("  1. generate_analytics_report (High Priority)")
     print("  2. process_user_order (Default Priority)")
     print("  3. archive_audit_logs (Low Priority)")
-    print("  4. process_payment_settlement (Retry Test)")
-    print("  5. Run Automated Test Suite (unittest)")
-    print("  6. Exit")
+    print("  4. process_payment_settlement (Retry Test - Recovers)")
+    print("  5. always_failing_task (Always Fails - Permanent Exception)")
+    print("  6. Run Automated Test Suite (unittest)")
+    print("  7. Exit")
     print("=" * 60)
     
     try:
-        task_choice = input("\nEnter task choice (1-6): ").strip()
+        task_choice = input("\nEnter task choice (1-7): ").strip()
     except (EOFError, KeyboardInterrupt):
         print("\nExiting.")
         return
 
-    if task_choice == "5":
+    if task_choice == "6":
         print("\nRunning automated unittest suite...")
         unittest.main(argv=[sys.argv[0]], exit=False)
         return
-    elif task_choice == "6":
+    elif task_choice == "7":
         print("Exiting.")
         return
-    elif task_choice not in ["1", "2", "3", "4"]:
+    elif task_choice not in ["1", "2", "3", "4", "5"]:
         print("Invalid task choice selected.")
         return
 
@@ -173,7 +182,8 @@ def interactive_enqueue_menu():
         "1": (process_high_priority_task, settings.queue_high_priority),
         "2": (process_default_task, settings.queue_default),
         "3": (process_low_priority_task, settings.queue_low_priority),
-        "4": (process_failing_task, settings.queue_default)
+        "4": (process_failing_task, settings.queue_default),
+        "5": (always_failing_task, settings.queue_default)
     }
     selected_task_fn, default_queue = tasks_map[task_choice]
 

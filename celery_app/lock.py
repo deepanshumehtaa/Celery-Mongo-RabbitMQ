@@ -95,7 +95,10 @@ class MongoLock:
             if result.deleted_count > 0:
                 logger.info("Successfully released lock for key: %s (task_id: %s)", self.lock_key, self.task_id)
             else:
-                logger.debug("Lock key: %s (task_id: %s) was not deleted (possibly already expired or owned by someone else)", self.lock_key, self.task_id)
+                logger.debug(
+                    "Lock key: %s (task_id: %s) was not deleted (possibly already expired or owned by someone else)",
+                    self.lock_key,
+                    self.task_id)
         except Exception as e:
             logger.error("Error releasing lock for key: %s: %s", self.lock_key, e)
 

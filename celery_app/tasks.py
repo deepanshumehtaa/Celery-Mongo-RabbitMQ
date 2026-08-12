@@ -151,6 +151,23 @@ def process_payment_settlement(self, fail_until_retry: int = 3, **kwargs):
     return settlement_result
 
 
+@app.task(base=MongoLoggedTask, bind=True, name="celery_app.tasks.always_failing_task")
+def always_failing_task(self, data: dict = None, **kwargs):
+    """
+    Always Failing Task: Intentionally raises an unhandled exception on every retry attempt.
+    Exhausts max retries and permanently sets status='FAILED' in MongoDB task_logs and task_responses.
+    """
+    if data is None or not isinstance(data, dict):
+        data = {"reason": "Simulated permanent system failure"}
+        
+    trace_id = extract_trace_id((data,), {})
+    t_logger = get_trace_logger(__name__, trace_id=trace_id)
+    current_retry = self.request.retries
+    
+    t_logger.error("Executing always-failing task: attempt %d/4", current_retry + 1)
+    raise RuntimeError(f"Permanent task failure simulated on attempt {current_retry + 1}")
+
+
 # Backwards compatibility aliases
 process_high_priority_task = generate_analytics_report
 process_default_task = process_user_order
