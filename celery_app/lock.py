@@ -3,8 +3,9 @@ from datetime import datetime, timedelta, timezone
 from pymongo.errors import DuplicateKeyError
 from constants import settings
 from database import MongoDBManager
+from utils.logger import get_trace_logger
 
-logger = logging.getLogger(__name__)
+logger = get_trace_logger(__name__)
 
 
 class LockAcquisitionError(Exception):
@@ -17,11 +18,13 @@ class MongoLock:
     Distributed lock implementation using MongoDB.
     Prevents concurrent execution of duplicate tasks by enforcing unique lock keys.
     """
-    def __init__(self, lock_key: str, task_id: str, timeout_seconds: int = None):
+    def __init__(self, lock_key: str, task_id: str, trace_id: str = None, timeout_seconds: int = None):
         self.lock_key = lock_key
         self.task_id = task_id
+        self.trace_id = trace_id or "N/A"
         self.timeout_seconds = timeout_seconds or settings.mongo_lock_timeout_seconds
         self.collection = MongoDBManager.get_locks_collection()
+        self.logger = get_trace_logger(__name__, trace_id=self.trace_id)
 
     def acquire(self) -> bool:
         """

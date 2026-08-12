@@ -11,7 +11,7 @@ from celery_app.tasks import (
     generate_lock_key,
     process_high_priority_task,
     process_default_task,
-    addition_task,
+    process_low_priority_task,
     process_failing_task
 )
 
@@ -29,7 +29,7 @@ class TestEnqueueAndExecution(unittest.TestCase):
 
     def test_01_enqueue_high_priority_task(self):
         """Pushes a task to the high_priority queue in RabbitMQ."""
-        payload = {"action": "generate_report", "priority": "high"}
+        payload = {"trace_id": "tr-test-high-1", "action": "generate_report", "priority": "high"}
         async_result = process_high_priority_task.apply_async(
             args=(payload,),
             queue=RabbitMQConfig.HIGH_PRIORITY_QUEUE
@@ -40,7 +40,7 @@ class TestEnqueueAndExecution(unittest.TestCase):
 
     def test_02_enqueue_default_task(self):
         """Pushes a task to the default queue in RabbitMQ."""
-        payload = {"action": "update_cache", "priority": "default"}
+        payload = {"trace_id": "tr-test-default-2", "action": "update_cache", "priority": "default"}
         async_result = process_default_task.apply_async(
             args=(payload,),
             queue=RabbitMQConfig.DEFAULT_QUEUE
@@ -51,8 +51,8 @@ class TestEnqueueAndExecution(unittest.TestCase):
 
     def test_03_enqueue_low_priority_task(self):
         """Pushes a task to the low_priority queue in RabbitMQ."""
-        payload = {"action": "archive_logs", "priority": "low"}
-        async_result = addition_task.apply_async(
+        payload = {"trace_id": "tr-test-low-3", "action": "archive_logs", "priority": "low"}
+        async_result = process_low_priority_task.apply_async(
             args=(payload,),
             queue=RabbitMQConfig.LOW_PRIORITY_QUEUE
         )
@@ -62,7 +62,7 @@ class TestEnqueueAndExecution(unittest.TestCase):
 
     def test_04_enqueue_duplicate_tasks(self):
         """Pushes two identical tasks concurrently to test MongoDB duplicate locking."""
-        payload = {"transaction_id": 999, "amount": 500.0}
+        payload = {"trace_id": "tr-test-dup-4", "transaction_id": 999, "amount": 500.0}
         
         async_a = process_default_task.apply_async(args=(payload,), queue=RabbitMQConfig.DEFAULT_QUEUE)
         async_b = process_default_task.apply_async(args=(payload,), queue=RabbitMQConfig.DEFAULT_QUEUE)
@@ -76,7 +76,7 @@ class TestEnqueueAndExecution(unittest.TestCase):
 
     def test_05_enqueue_failing_task_with_retries(self):
         """Pushes a failing task to test 3 retries with exponential backoff."""
-        async_result = process_failing_task.apply_async(args=(3,), queue=RabbitMQConfig.DEFAULT_QUEUE)
+        async_result = process_failing_task.apply_async(args=(3,), kwargs={"trace_id": "tr-test-fail-5"}, queue=RabbitMQConfig.DEFAULT_QUEUE)
         self.assertIsNotNone(async_result.id)
         self.__class__.fail_task_id = async_result.id
         print(f"[Enqueue] Failing task pushed to RabbitMQ. Task ID: {async_result.id}")
@@ -108,7 +108,8 @@ class TestEnqueueAndExecution(unittest.TestCase):
             if high_log:
                 self.assertIn("status", high_log)
                 self.assertIn("created_at", high_log)
-                print(f"Verified High Priority Log in MongoDB -> Status: {high_log['status']}")
+                self.assertIn("trace_id", high_log)
+                print(f"Verified High Priority Log in MongoDB -> Status: {high_log['status']}, Trace ID: {high_log['trace_id']}")
 
             total_responses = responses_col.count_documents({})
             print(f"Total MongoDB Task Responses recorded: {total_responses}")
@@ -119,8 +120,9 @@ class TestEnqueueAndExecution(unittest.TestCase):
                     self.assertIn("created_at", sample_resp)
                     self.assertIn("response", sample_resp)
                     self.assertIn("status", sample_resp)
+                    self.assertIn("trace_id", sample_resp)
                     self.assertIn(sample_resp["status"], ["SUCCESS", "FAILED"])
-                    print(f"Verified task responses contain 'status' ('{sample_resp['status']}') and 'created_at' timestamp fields.")
+                    print(f"Verified task responses contain 'status' ('{sample_resp['status']}'), 'trace_id' ('{sample_resp['trace_id']}'), and 'created_at' timestamp fields.")
 
 class TestLockKeyGeneration(unittest.TestCase):
     def test_lock_key_deterministic(self):
@@ -142,10 +144,10 @@ def interactive_enqueue_menu():
     print("       CELERY TASK INTERACTIVE DISPATCHER MENU       ")
     print("=" * 60)
     print("1st Question -> Select the task to execute:")
-    print("  1. process_high_priority_task")
-    print("  2. process_default_task")
-    print("  3. math_task")
-    print("  4. process_failing_task")
+    print("  1. generate_analytics_report (High Priority)")
+    print("  2. process_user_order (Default Priority)")
+    print("  3. archive_audit_logs (Low Priority)")
+    print("  4. process_payment_settlement (Retry Test)")
     print("  5. Run Automated Test Suite (unittest)")
     print("  6. Exit")
     print("=" * 60)
@@ -170,7 +172,7 @@ def interactive_enqueue_menu():
     tasks_map = {
         "1": (process_high_priority_task, settings.queue_high_priority),
         "2": (process_default_task, settings.queue_default),
-        "3": (addition_task, settings.queue_low_priority),
+        "3": (process_low_priority_task, settings.queue_low_priority),
         "4": (process_failing_task, settings.queue_default)
     }
     selected_task_fn, default_queue = tasks_map[task_choice]
