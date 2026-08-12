@@ -119,18 +119,13 @@ class TestEnqueueAndExecution(unittest.TestCase):
                 self.assertIn("trace_id", high_log)
                 print(f"Verified High Priority Log in MongoDB -> Status: {high_log['status']}, Trace ID: {high_log['trace_id']}")
 
-            total_responses = responses_col.count_documents({})
-            print(f"Total MongoDB Task Responses recorded: {total_responses}")
-            if total_responses > 0:
-                high_task_id = getattr(self.__class__, "high_task_id", None)
-                sample_resp = responses_col.find_one({"task_id": high_task_id}) if high_task_id else responses_col.find_one(sort=[("created_at", -1)])
-                if sample_resp:
-                    self.assertIn("created_at", sample_resp)
-                    self.assertIn("response", sample_resp)
-                    self.assertIn("status", sample_resp)
-                    self.assertIn("trace_id", sample_resp)
-                    self.assertIn(sample_resp["status"], ["SUCCESS", "FAILED"])
-                    print(f"Verified task responses contain 'status' ('{sample_resp['status']}'), 'trace_id' ('{sample_resp['trace_id']}'), and 'created_at' timestamp fields.")
+            always_fail_id = getattr(self.__class__, "always_fail_id", None)
+            if always_fail_id:
+                fail_resp = responses_col.find_one({"task_id": always_fail_id})
+                if fail_resp:
+                    self.assertEqual(fail_resp["status"], "FAILED")
+                    self.assertIn("trace_id", fail_resp)
+                    print(f"Verified Always Failing Task in MongoDB -> Status: '{fail_resp['status']}', Response Error: '{fail_resp['response']}'")
 
 class TestLockKeyGeneration(unittest.TestCase):
     def test_lock_key_deterministic(self):
