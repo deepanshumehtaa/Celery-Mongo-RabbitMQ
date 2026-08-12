@@ -58,9 +58,9 @@ def log_task_state(task_id: str, task_name: str, lock_key: str, args: tuple, kwa
     except Exception as e:
         logger.error("Failed to log task state to MongoDB: %s", e)
 
-def write_task_response(task_id: str, task_name: str, result: any):
+def write_task_response(task_id: str, task_name: str, result: any, status: str = "SUCCESS"):
     """
-    Saves the final response/result of a successful task to a separate MongoDB collection.
+    Saves the final response/result of a task (with status SUCCESS or FAILED) to a separate MongoDB collection.
     """
     try:
         responses_col = MongoDBManager.get_responses_collection()
@@ -71,6 +71,7 @@ def write_task_response(task_id: str, task_name: str, result: any):
             {
                 "$set": {
                     "task_name": task_name,
+                    "status": status,
                     "response": result,
                     "created_at": now
                 }
@@ -86,7 +87,7 @@ class MongoLoggedTask(Task):
     Custom Celery Task subclass implementing DRY & SOLID design:
     - Encapsulates execution tracking, storing state to MongoDB.
     - Integrates a distributed MongoLock.
-    - Captures task outcomes (writing success outputs to responses).
+    - Captures task outcomes (writing success/failure outputs to responses).
     - Enforces 3 retries and exponential backoff on exceptions.
     """
     abstract = True
@@ -142,8 +143,8 @@ class MongoLoggedTask(Task):
                 status="SUCCESS",
                 retry_count=self.request.retries
             )
-            # Write response to separate collection
-            write_task_response(task_id, task_name, result)
+            # Write response with status="SUCCESS" to separate collection
+            write_task_response(task_id, task_name, result, status="SUCCESS")
             return result
 
         except LockAcquisitionError as e:
@@ -200,6 +201,8 @@ class MongoLoggedTask(Task):
                     error_message=f"{type(exc).__name__}: {str(exc)}",
                     retry_count=current_retry
                 )
+                # Write failed response with status="FAILED" to task_responses collection
+                write_task_response(task_id, task_name, f"{type(exc).__name__}: {str(exc)}", status="FAILED")
                 logger.error("Task %s [%s] failed permanently after %d retries. Error: %s", task_name, task_id, current_retry, exc)
                 raise exc
         finally:

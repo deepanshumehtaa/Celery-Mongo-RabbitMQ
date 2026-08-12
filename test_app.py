@@ -24,7 +24,7 @@ class TestEnqueueAndExecution(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Initialize MongoDB indexes and clear collections before test run."""
+        """Initialize MongoDB indexes before test run."""
         MongoDBManager.initialize_indexes()
 
     def test_01_enqueue_high_priority_task(self):
@@ -113,10 +113,14 @@ class TestEnqueueAndExecution(unittest.TestCase):
             total_responses = responses_col.count_documents({})
             print(f"Total MongoDB Task Responses recorded: {total_responses}")
             if total_responses > 0:
-                sample_resp = responses_col.find_one()
-                self.assertIn("created_at", sample_resp)
-                self.assertIn("response", sample_resp)
-                print("Verified task responses contain 'created_at' timestamp field.")
+                high_task_id = getattr(self.__class__, "high_task_id", None)
+                sample_resp = responses_col.find_one({"task_id": high_task_id}) if high_task_id else responses_col.find_one(sort=[("created_at", -1)])
+                if sample_resp:
+                    self.assertIn("created_at", sample_resp)
+                    self.assertIn("response", sample_resp)
+                    self.assertIn("status", sample_resp)
+                    self.assertIn(sample_resp["status"], ["SUCCESS", "FAILED"])
+                    print(f"Verified task responses contain 'status' ('{sample_resp['status']}') and 'created_at' timestamp fields.")
 
 class TestLockKeyGeneration(unittest.TestCase):
     def test_lock_key_deterministic(self):
