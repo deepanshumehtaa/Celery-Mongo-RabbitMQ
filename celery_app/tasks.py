@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import random
 import time
 import uuid
 from datetime import datetime, timezone
@@ -24,7 +23,7 @@ def generate_analytics_report(self, data: dict = None):
     """
     High Priority Task: Generates a real-time executive analytics report.
     Calculates revenue totals, conversion rates, and risk scores.
-    Simulates computation delay (1 < time < 5 seconds).
+    Simulates computation delay (strictly 4 seconds).
     """
     if data is None or not isinstance(data, dict):
         data = {
@@ -36,9 +35,8 @@ def generate_analytics_report(self, data: dict = None):
     t_logger = get_trace_logger(__name__, trace_id=trace_id)
     t_logger.info("Executing analytics report generation for data: %s", data)
     
-    # Sleep delay strictly between 1 and 5 seconds
-    processing_delay = random.uniform(1.5, 3.5)
-    time.sleep(processing_delay)
+    # Sleep delay strictly 4 seconds
+    time.sleep(4)
     
     metrics = data.get("metrics", [100.0, 250.5, 400.0, 75.25])
     total_value = sum(metrics) if isinstance(metrics, list) else 0.0
@@ -49,7 +47,7 @@ def generate_analytics_report(self, data: dict = None):
         "total_processed_records": len(metrics) if isinstance(metrics, list) else 1,
         "total_value": round(total_value, 2),
         "average_value": round(avg_value, 2),
-        "processing_time_seconds": round(processing_delay, 2),
+        "processing_time_seconds": 4.0,
         "status": "COMPLETED",
         "generated_at": datetime.now(timezone.utc).isoformat()
     }
@@ -62,7 +60,7 @@ def process_user_order(self, data: dict = None):
     """
     Default Priority Task: Processes user e-commerce order transactions.
     Calculates subtotal, tax rate, discount calculations, and updates order status.
-    Simulates transaction delay (1 < time < 5 seconds).
+    Simulates transaction delay (strictly 4 seconds).
     """
     if data is None or not isinstance(data, dict):
         data = {
@@ -76,9 +74,8 @@ def process_user_order(self, data: dict = None):
     t_logger = get_trace_logger(__name__, trace_id=trace_id)
     t_logger.info("Processing user order transaction: %s", data)
     
-    # Sleep delay strictly between 1 and 5 seconds
-    processing_delay = random.uniform(1.2, 3.8)
-    time.sleep(processing_delay)
+    # Sleep delay strictly 4 seconds
+    time.sleep(4)
     
     amount = data.get("amount", 150.0)
     tax_rate = data.get("tax_rate", 0.08)
@@ -94,7 +91,7 @@ def process_user_order(self, data: dict = None):
         "subtotal": subtotal,
         "tax_amount": round(tax_amount, 2),
         "final_total": final_total,
-        "processing_time_seconds": round(processing_delay, 2),
+        "processing_time_seconds": 4.0,
         "status": "ORDER_PROCESSED",
         "processed_at": datetime.now(timezone.utc).isoformat()
     }
@@ -106,7 +103,7 @@ def process_user_order(self, data: dict = None):
 def archive_audit_logs(self, data: dict = None):
     """
     Low Priority Task: Archives system audit logs and compresses historical data.
-    Simulates log compression delay (1 < time < 5 seconds).
+    Simulates log compression delay (strictly 4 seconds).
     """
     if data is None or not isinstance(data, dict):
         data = {
@@ -118,9 +115,8 @@ def archive_audit_logs(self, data: dict = None):
     t_logger = get_trace_logger(__name__, trace_id=trace_id)
     t_logger.info("Starting low-priority audit log archival with payload: %s", data)
     
-    # Sleep delay strictly between 1 and 5 seconds
-    processing_delay = random.uniform(1.5, 4.0)
-    time.sleep(processing_delay)
+    # Sleep delay strictly 4 seconds
+    time.sleep(4)
     
     log_entries = data.get("log_entries", 500)
     compressed_size_kb = round(log_entries * 0.42, 2)
@@ -131,7 +127,7 @@ def archive_audit_logs(self, data: dict = None):
         "entries_archived": log_entries,
         "estimated_size_kb": compressed_size_kb,
         "compression_ratio": "68%",
-        "processing_time_seconds": round(processing_delay, 2),
+        "processing_time_seconds": 4.0,
         "status": "ARCHIVED",
         "archived_at": datetime.now(timezone.utc).isoformat()
     }
@@ -144,7 +140,7 @@ def process_payment_settlement(self, fail_until_retry: int = 3, **kwargs):
     """
     Failing Task: Simulates payment gateway settlement with transient API timeouts.
     Retries up to max_retries using exponential backoff before achieving final settlement.
-    Simulates gateway API network roundtrip delay (1 < time < 5 seconds).
+    Simulates gateway API network roundtrip delay (strictly 4 seconds).
     """
     if fail_until_retry is None:
         fail_until_retry = 3
@@ -157,9 +153,8 @@ def process_payment_settlement(self, fail_until_retry: int = 3, **kwargs):
     
     t_logger.info("Attempting payment gateway settlement (Attempt %d/%d)", current_retry + 1, fail_until_retry + 1)
     
-    # Sleep delay strictly between 1 and 5 seconds
-    processing_delay = random.uniform(1.2, 2.5)
-    time.sleep(processing_delay)
+    # Sleep delay strictly 4 seconds
+    time.sleep(4)
     
     if current_retry < fail_until_retry:
         raise ValueError(f"Third-party payment gateway timeout on attempt {current_retry + 1}")
@@ -168,7 +163,7 @@ def process_payment_settlement(self, fail_until_retry: int = 3, **kwargs):
         "settlement_id": f"STL-{uuid.uuid4().hex[:8].upper()}",
         "status": "SETTLED",
         "attempt_count": current_retry + 1,
-        "processing_time_seconds": round(processing_delay, 2),
+        "processing_time_seconds": 4.0,
         "settled_at": datetime.now(timezone.utc).isoformat()
     }
     t_logger.info("Payment settlement succeeded after %d retries: %s", current_retry, settlement_result)
@@ -180,7 +175,7 @@ def always_failing_task(self, data: dict = None, **kwargs):
     """
     Always Failing Task: Intentionally raises an unhandled exception on every retry attempt.
     Exhausts max retries and permanently sets status='FAILED' in MongoDB task_logs and task_responses.
-    Simulates task processing delay (1 < time < 5 seconds).
+    Simulates task processing delay (strictly 4 seconds).
     """
     if data is None or not isinstance(data, dict):
         data = {"reason": "Simulated permanent system failure"}
@@ -191,9 +186,8 @@ def always_failing_task(self, data: dict = None, **kwargs):
     
     t_logger.error("Executing always-failing task: attempt %d/4", current_retry + 1)
     
-    # Sleep delay strictly between 1 and 5 seconds
-    processing_delay = random.uniform(1.1, 2.2)
-    time.sleep(processing_delay)
+    # Sleep delay strictly 4 seconds
+    time.sleep(4)
     
     raise RuntimeError(f"Permanent task failure simulated on attempt {current_retry + 1}")
 
