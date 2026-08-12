@@ -107,25 +107,17 @@ To wipe all documents from all 3 MongoDB collections (`task_logs`, `task_respons
 uv run python clear_db.py
 ```
 
-### 9. Triggering Custom Tasks via CLI
-Use the `trigger.py` utility to dynamically queue custom tasks to specific queues:
+### 10. AsyncIO High-Concurrency Load Testing
+Use `load_test.py` to asynchronously enqueue a high volume of requests across all queues in a short time window using Python's `asyncio`:
 
-* **High Priority Task**:
-  ```bash
-  uv run python trigger.py --task high --data '{"userId": 1, "action": "export"}'
-  ```
-* **Default Task**:
-  ```bash
-  uv run python trigger.py --task default --data '{"status": "active"}'
-  ```
-* **Low Priority Task**:
-  ```bash
-  uv run python trigger.py --task low --data '{"clean": "all"}'
-  ```
-* **Failing Task (testing retries)**:
-  ```bash
-  uv run python trigger.py --task fail --fail-until 3
-  ```
+```bash
+# Enqueue 100 tasks with max concurrency of 20
+uv run python load_test.py -n 100 -c 20 --poll-db
+
+# Custom load test: 200 requests with 50 concurrency
+uv run python load_test.py -n 200 -c 50 --poll-db
+```
+
 
 
 

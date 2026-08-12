@@ -6,8 +6,9 @@ from app_configs.rabbitmq_config import RabbitMQConfig
 from celery_app.tasks import (
     process_high_priority_task,
     process_default_task,
-    addition_task,
-    process_failing_task
+    process_low_priority_task,
+    process_failing_task,
+    always_failing_task
 )
 
 # Configure logging
@@ -21,9 +22,9 @@ def main():
     parser = argparse.ArgumentParser(description="Trigger background Celery tasks with specific priorities.")
     parser.add_argument(
         "--task",
-        choices=["high", "default", "low", "fail"],
+        choices=["high", "default", "low", "fail", "always_fail"],
         required=True,
-        help="The type of task to trigger. Options: high, default, low, fail."
+        help="The type of task to trigger. Options: high, default, low, fail, always_fail."
     )
     parser.add_argument(
         "--data",
@@ -63,7 +64,7 @@ def main():
         
     elif args.task == "low":
         # Routes to low priority queue
-        task = addition_task.apply_async(args=(data_payload,), queue=RabbitMQConfig.LOW_PRIORITY_QUEUE)
+        task = process_low_priority_task.apply_async(args=(data_payload,), queue=RabbitMQConfig.LOW_PRIORITY_QUEUE)
         logger.info("🐢 Dispatched Low Priority Task successfully! Task ID: %s", task.id)
         logger.info("Check MongoDB logs collection for task_id: %s", task.id)
         
@@ -73,6 +74,12 @@ def main():
         logger.info("⚠️ Dispatched Failing (Retry) Task successfully! Task ID: %s", task.id)
         logger.info("Task will fail %d times and then succeed on retry attempt %d.", args.fail_until, args.fail_until + 1)
         logger.info("Check MongoDB logs collection for task_id: %s", task.id)
+
+    elif args.task == "always_fail":
+        # Dispatches the always failing task
+        task = always_failing_task.apply_async(args=(data_payload,), queue=RabbitMQConfig.DEFAULT_QUEUE)
+        logger.info("💥 Dispatched Always Failing Task successfully! Task ID: %s", task.id)
+        logger.info("Task will exhaust max retries and fail permanently in MongoDB.")
 
 if __name__ == "__main__":
     main()

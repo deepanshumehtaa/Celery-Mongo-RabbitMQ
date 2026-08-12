@@ -186,8 +186,13 @@ class MongoLoggedTask(Task):
 
         except Exception as exc:
             current_retry = self.request.retries
-            max_retries = 3
-            if current_retry < max_retries:
+            configured_max_retries = getattr(self, "max_retries", 3)
+            if kwargs.get("no_retry", False):
+                configured_max_retries = 0
+            elif "max_retries" in kwargs:
+                configured_max_retries = kwargs["max_retries"]
+
+            if current_retry < configured_max_retries:
                 # Exponential backoff: 2s, 4s, 8s
                 countdown = 2 ** (current_retry + 1)
                 
@@ -205,11 +210,11 @@ class MongoLoggedTask(Task):
                 
                 task_logger.warning(
                     "Task %s [%s] failed. Retrying (attempt %d/%d) in %ds. Error: %s",
-                    task_name, task_id, current_retry + 1, max_retries, countdown, exc
+                    task_name, task_id, current_retry + 1, configured_max_retries, countdown, exc
                 )
-                raise self.retry(exc=exc, countdown=countdown, max_retries=max_retries)
+                raise self.retry(exc=exc, countdown=countdown, max_retries=configured_max_retries)
             else:
-                # Max retries exceeded
+                # Max retries exceeded (or max_retries == 0)
                 log_task_state(
                     task_id=task_id,
                     task_name=task_name,
@@ -223,7 +228,7 @@ class MongoLoggedTask(Task):
                 )
                 # Write failed response with status="FAILED" to task_responses collection
                 write_task_response(task_id, task_name, trace_id, f"{type(exc).__name__}: {str(exc)}", status="FAILED")
-                task_logger.error("Task %s [%s] failed permanently after %d retries. Error: %s", task_name, task_id, current_retry, exc)
+                task_logger.error("Task %s [%s] failed permanently (retry %d/%d). Error: %s", task_name, task_id, current_retry, configured_max_retries, exc)
                 raise exc
         finally:
             if acquired:
