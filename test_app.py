@@ -140,7 +140,7 @@ def interactive_enqueue_menu():
     print("1st Question -> Select the task to execute:")
     print("  1. process_high_priority_task")
     print("  2. process_default_task")
-    print("  3. process_low_priority_task")
+    print("  3. math_task")
     print("  4. process_failing_task")
     print("  5. Run Automated Test Suite (unittest)")
     print("  6. Exit")

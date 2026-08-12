@@ -243,13 +243,13 @@ def addition_task(self, data: dict):
     Sample low priority task.
     """
     res = sum(data.values())
-    data["res"] = res
     logger.info("Starting low priority task execution with data: %s", data)
     return {
         "status": "completed",
         "priority": "low",
         "processed_at": datetime.now(timezone.utc).isoformat(),
-        "input_data": data
+        "input_data": data,
+        "res": res,
     }
 
 
