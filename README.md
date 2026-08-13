@@ -1,4 +1,5 @@
 # Background Task Processor (Celery, RabbitMQ & MongoDB)
+## This is a celery python template free to use
 
 A highly structured, production-ready Python background task processing server built using `uv`. It utilizes **Celery** as the task manager, **RabbitMQ** as the message broker with multiple priority queues, and **MongoDB** as the storage engine (tracking task states, storing responses, and enforcing distributed locks).
 
