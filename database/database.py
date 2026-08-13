@@ -10,6 +10,7 @@ class MongoDBManager:
     """
     Singleton connection manager for MongoDB.
     Ensures a single connection pool is managed and reused across tasks.
+    Manages task_request_responses and task_locks collections.
     """
     _client: MongoClient = None
 
@@ -19,7 +20,6 @@ class MongoDBManager:
             logger.info("Initializing MongoDB Client with URI: %s", settings.mongo_uri)
             cls._client = MongoClient(
                 settings.mongo_uri,
-                # Enforce safe connection pool behaviors suitable for celery workers
                 maxPoolSize=50,
                 minPoolSize=10,
                 serverSelectionTimeoutMS=5000
@@ -37,12 +37,8 @@ class MongoDBManager:
         return db[collection_name]
 
     @classmethod
-    def get_logs_collection(cls) -> Collection:
-        return cls.get_collection(settings.mongo_logs_collection)
-
-    @classmethod
-    def get_responses_collection(cls) -> Collection:
-        return cls.get_collection(settings.mongo_responses_collection)
+    def get_task_request_responses_collection(cls) -> Collection:
+        return cls.get_collection(settings.mongo_task_request_responses_collection)
 
     @classmethod
     def get_locks_collection(cls) -> Collection:
@@ -61,7 +57,7 @@ class MongoDBManager:
         Initializes indexes required by the application:
         - Unique index on lock_key in the locks collection
         - TTL index on expires_at in the locks collection
-        - Indexes on task_id for fast log and response lookups
+        - Indexes on task_id, lock_key, trace_id, and status for task_request_responses
         """
         try:
             # Setup Lock indexes
@@ -69,14 +65,12 @@ class MongoDBManager:
             locks_col.create_index("lock_key", unique=True)
             locks_col.create_index("expires_at", expireAfterSeconds=0)
             
-            # Setup Log indexes
-            logs_col = cls.get_logs_collection()
-            logs_col.create_index("task_id", unique=True)
-            logs_col.create_index("status")
-            
-            # Setup Response indexes
-            responses_col = cls.get_responses_collection()
-            responses_col.create_index("task_id", unique=True)
+            # Setup Task Request Responses indexes
+            req_resp_col = cls.get_task_request_responses_collection()
+            req_resp_col.create_index("task_id", unique=True)
+            req_resp_col.create_index("lock_key")
+            req_resp_col.create_index("trace_id")
+            req_resp_col.create_index("status")
             
             logger.info("MongoDB indexes initialized successfully.")
         except Exception as e:

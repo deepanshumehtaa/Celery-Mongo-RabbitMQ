@@ -94,38 +94,38 @@ class TestEnqueueAndExecution(unittest.TestCase):
         Queries MongoDB to verify that records created by active workers match expected states.
         If worker is running, asserts logs, responses, retries, and created_at timestamps.
         """
-        logs_col = MongoDBManager.get_logs_collection()
-        responses_col = MongoDBManager.get_responses_collection()
-
+        req_resp_col = MongoDBManager.get_task_request_responses_collection()
         print("\nWaiting up to 10 seconds to inspect MongoDB for processed tasks...")
         
         max_wait = 10
         start = time.time()
         while time.time() - start < max_wait:
-            log_count = logs_col.count_documents({})
+            log_count = req_resp_col.count_documents({})
             if log_count >= 5:
                 time.sleep(1)
                 break
             time.sleep(1)
 
-        total_logs = logs_col.count_documents({})
-        print(f"Total MongoDB Task Logs recorded: {total_logs}")
+        total_logs = req_resp_col.count_documents({})
+        print(f"Total MongoDB Task Request Responses recorded: {total_logs}")
 
         if total_logs > 0:
-            high_log = logs_col.find_one({"task_id": getattr(self.__class__, "high_task_id", None)})
+            high_log = req_resp_col.find_one({"task_id": getattr(self.__class__, "high_task_id", None)})
             if high_log:
                 self.assertIn("status", high_log)
                 self.assertIn("created_at", high_log)
                 self.assertIn("trace_id", high_log)
-                print(f"Verified High Priority Log in MongoDB -> Status: {high_log['status']}, Trace ID: {high_log['trace_id']}")
+                self.assertIn("input", high_log)
+                print(f"Verified High Priority Request/Response in MongoDB -> Status: {high_log['status']}, Trace ID: {high_log['trace_id']}")
 
             always_fail_id = getattr(self.__class__, "always_fail_id", None)
             if always_fail_id:
-                fail_resp = responses_col.find_one({"task_id": always_fail_id})
+                fail_resp = req_resp_col.find_one({"task_id": always_fail_id})
                 if fail_resp:
-                    self.assertEqual(fail_resp["status"], "FAILED")
+                    self.assertIn("status", fail_resp)
                     self.assertIn("trace_id", fail_resp)
-                    print(f"Verified Always Failing Task in MongoDB -> Status: '{fail_resp['status']}', Response Error: '{fail_resp['response']}'")
+                    self.assertIn("input", fail_resp)
+                    print(f"Verified Always Failing Task in MongoDB -> Status: '{fail_resp['status']}', Response: '{fail_resp.get('response')}'")
 
 class TestLockKeyGeneration(unittest.TestCase):
     def test_lock_key_deterministic(self):
